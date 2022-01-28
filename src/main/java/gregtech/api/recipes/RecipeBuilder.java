@@ -3,7 +3,9 @@ package gregtech.api.recipes;
 import gregtech.api.GTValues;
 import gregtech.api.items.metaitem.MetaItem;
 import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.metatileentity.multiblock.CleanroomType;
 import gregtech.api.recipes.Recipe.ChanceEntry;
+import gregtech.api.recipes.recipeproperties.CleanroomProperty;
 import gregtech.api.recipes.recipeproperties.RecipeProperty;
 import gregtech.api.unification.OreDictUnifier;
 import gregtech.api.unification.material.Material;
@@ -52,6 +54,8 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
 
     protected EnumValidationResult recipeStatus = EnumValidationResult.VALID;
 
+    protected CleanroomType cleanroom = null;
+
     protected RecipeBuilder() {
         this.inputs = NonNullList.create();
         this.outputs = NonNullList.create();
@@ -92,9 +96,23 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
         this.EUt = recipeBuilder.EUt;
         this.hidden = recipeBuilder.hidden;
         this.onBuildAction = recipeBuilder.onBuildAction;
+        this.cleanroom = recipeBuilder.cleanroom;
+    }
+
+    public R cleanroom(CleanroomType cleanroom) {
+        if (cleanroom == null) {
+            GTLog.logger.error("Cleanroom cannot be null", new IllegalArgumentException());
+            recipeStatus = EnumValidationResult.INVALID;
+        }
+        this.cleanroom = cleanroom;
+        return (R) this;
     }
 
     public boolean applyProperty(String key, Object value) {
+        if (key.equals(CleanroomProperty.KEY)) {
+            this.cleanroom((CleanroomType) value);
+            return true;
+        }
         return false;
     }
 
@@ -560,7 +578,14 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
     public void buildAndRegister() {
         if (onBuildAction != null)
             onBuildAction.accept(this);
+
         ValidationResult<Recipe> validationResult = build();
+        if (cleanroom != null) {
+            Recipe recipe = validationResult.getResult();
+            if (!recipe.setProperty(CleanroomProperty.getInstance(), cleanroom)) {
+                validationResult = ValidationResult.newResult(EnumValidationResult.INVALID, validationResult.getResult());
+            }
+        }
         recipeMap.addRecipe(validationResult);
     }
 
@@ -621,6 +646,7 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
                 .append("duration", duration)
                 .append("EUt", EUt)
                 .append("hidden", hidden)
+                .append("cleanroom", cleanroom)
                 .append("recipeStatus", recipeStatus)
                 .toString();
     }
